@@ -259,7 +259,7 @@
 
 <!-- PAGE: TRAINING -->
 <div class="page" id="page-training">
-  <div class="sec-title">練習ログ × 睡眠スコア</div>
+  <div class="sec-title">練習ログ × 睡眠 × HRV</div>
 
   <div class="chart-wrap">
     <div class="chart-label">月間走行距離 + 睡眠スコア（週次）</div>
@@ -269,6 +269,16 @@
       <div class="legend-item"><div class="legend-dot" style="background:var(--full); border:2px solid white; box-shadow:0 0 0 1px var(--full)"></div>レース</div>
     </div>
     <div class="chart-box" style="height:260px"><canvas id="sleepTrainChart"></canvas></div>
+  </div>
+
+  <div class="chart-wrap">
+    <div class="chart-label">HRV 日次推移（夜間HRV + 7日平均 + ベースライン帯）</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1D7A55"></div>夜間HRV</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2B5FA6"></div>7日平均</div>
+      <div class="legend-item"><div class="legend-rect" style="background:rgba(43,95,166,.12)"></div>ベースライン帯</div>
+    </div>
+    <div class="chart-box" style="height:220px"><canvas id="hrvChart"></canvas></div>
   </div>
 
   <div class="chart-wrap">
@@ -349,6 +359,13 @@
       <div class="upload-name">睡眠データ</div>
       <div style="font-size:10px;color:var(--ink3);margin-bottom:.4rem;">wadachi_sleep.csv</div>
       <div class="upload-status" id="sleepStatus">クリックしてCSVを選択</div>
+    </label>
+    <label class="upload-card" id="hrvCard">
+      <input type="file" accept=".csv" id="hrvFileInput" onchange="handleHRVUpload(event)">
+      <div class="upload-icon">💓</div>
+      <div class="upload-name">HRVステータス</div>
+      <div style="font-size:10px;color:var(--ink3);margin-bottom:.4rem;">wadachi_hrv.csv</div>
+      <div class="upload-status" id="hrvStatus">クリックしてCSVを選択</div>
     </label>
   </div>
 
@@ -477,7 +494,36 @@ const SLEEP = [
   {ym:"2026-04",score:68,dur:366},
 ];
 
-const PRE_RACE = [
+const HRV = [
+  {date:"2026-05-01",hrv:49,avg7:44,bl_low:45,bl_high:56},
+  {date:"2026-04-30",hrv:42,avg7:44,bl_low:44,bl_high:56},
+  {date:"2026-04-29",hrv:35,avg7:45,bl_low:44,bl_high:56},
+  {date:"2026-04-28",hrv:48,avg7:47,bl_low:44,bl_high:56},
+  {date:"2026-04-27",hrv:46,avg7:48,bl_low:44,bl_high:56},
+  {date:"2026-04-26",hrv:46,avg7:47,bl_low:44,bl_high:56},
+  {date:"2026-04-25",hrv:40,avg7:46,bl_low:44,bl_high:56},
+  {date:"2026-04-24",hrv:54,avg7:46,bl_low:44,bl_high:56},
+  {date:"2026-04-23",hrv:47,avg7:45,bl_low:44,bl_high:57},
+  {date:"2026-04-22",hrv:51,avg7:46,bl_low:44,bl_high:56},
+  {date:"2026-04-21",hrv:51,avg7:46,bl_low:44,bl_high:56},
+  {date:"2026-04-20",hrv:43,avg7:46,bl_low:44,bl_high:57},
+  {date:"2026-04-19",hrv:39,avg7:47,bl_low:44,bl_high:56},
+  {date:"2026-04-18",hrv:42,avg7:47,bl_low:45,bl_high:56},
+  {date:"2026-04-17",hrv:45,avg7:48,bl_low:45,bl_high:57},
+  {date:"2026-04-16",hrv:55,avg7:48,bl_low:45,bl_high:57},
+  {date:"2026-04-15",hrv:51,avg7:46,bl_low:45,bl_high:57},
+  {date:"2026-04-14",hrv:51,avg7:45,bl_low:45,bl_high:57},
+  {date:"2026-04-13",hrv:51,avg7:45,bl_low:46,bl_high:57},
+  {date:"2026-04-12",hrv:37,avg7:45,bl_low:45,bl_high:57},
+  {date:"2026-04-11",hrv:47,avg7:47,bl_low:45,bl_high:57},
+  {date:"2026-04-10",hrv:50,avg7:47,bl_low:45,bl_high:57},
+  {date:"2026-04-09",hrv:36,avg7:46,bl_low:45,bl_high:57},
+  {date:"2026-04-08",hrv:48,avg7:49,bl_low:45,bl_high:57},
+  {date:"2026-04-07",hrv:47,avg7:48,bl_low:45,bl_high:57},
+  {date:"2026-04-06",hrv:56,avg7:47,bl_low:45,bl_high:58},
+  {date:"2026-04-05",hrv:46,avg7:45,bl_low:46,bl_high:58},
+  {date:"2026-04-04",hrv:45,avg7:44,bl_low:45,bl_high:58},
+];
   {date:"2024-11-03",name:"東北みやぎ復興",preKm:129.2,runs:8},
   {date:"2025-02-16",name:"京都2025",preKm:104.8,runs:8},
   {date:"2025-03-16",name:"板橋City25km",preKm:209.3,runs:12},
@@ -642,6 +688,67 @@ function initCharts() {
         x:{ticks:{color:'#9A9890',font:{size:10},maxRotation:45},grid:{display:false}},
         y:{position:'left',ticks:{color:'#1D7A55',font:{size:10}},grid:{color:'rgba(30,28,24,0.06)'},title:{display:true,text:'本数',color:'#1D7A55',font:{size:10}}},
         y2:{position:'right',min:110,max:145,ticks:{color:'#9A9890',font:{size:10}},grid:{display:false},title:{display:true,text:'bpm',color:'#9A9890',font:{size:10}}}
+      }
+    }
+  });
+
+  // HRV chart
+  const hrvSorted = [...HRV].sort((a,b)=>a.date.localeCompare(b.date));
+  const hrvLabels = hrvSorted.map(h=>h.date.slice(5));
+  new Chart(document.getElementById('hrvChart'), {
+    type:'line',
+    data:{
+      labels: hrvLabels,
+      datasets:[
+        {
+          label:'ベースライン上限',
+          data: hrvSorted.map(h=>h.bl_high),
+          borderColor:'transparent',
+          backgroundColor:'rgba(43,95,166,0.08)',
+          pointRadius:0, fill:'+1', tension:0.3
+        },
+        {
+          label:'ベースライン下限',
+          data: hrvSorted.map(h=>h.bl_low),
+          borderColor:'rgba(43,95,166,0.2)',
+          backgroundColor:'rgba(43,95,166,0.08)',
+          borderDash:[3,3],
+          pointRadius:0, fill:false, tension:0.3
+        },
+        {
+          label:'7日平均',
+          data: hrvSorted.map(h=>h.avg7),
+          borderColor:'#2B5FA6',
+          backgroundColor:'transparent',
+          pointRadius:2, tension:0.4, borderWidth:2
+        },
+        {
+          label:'夜間HRV',
+          data: hrvSorted.map(h=>h.hrv),
+          borderColor:'#1D7A55',
+          backgroundColor:'rgba(29,122,85,0.06)',
+          pointBackgroundColor: hrvSorted.map(h=>h.hrv < h.bl_low ? '#C4501A' : '#1D7A55'),
+          pointRadius: hrvSorted.map(h=>h.hrv < h.bl_low ? 6 : 3),
+          tension:0.3, fill:false
+        },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          label: ctx => {
+            const h = hrvSorted[ctx.dataIndex];
+            if(ctx.dataset.label==='夜間HRV') return `HRV: ${ctx.raw}ms ${h.hrv<h.bl_low?'⚠ ベースライン割れ':''}`;
+            if(ctx.dataset.label==='7日平均') return `7日平均: ${ctx.raw}ms`;
+            return null;
+          }
+        }}
+      },
+      scales:{
+        x:{ticks:{color:'#9A9890',font:{size:10},maxRotation:45,autoSkip:true,maxTicksLimit:14},grid:{display:false}},
+        y:{min:25,max:65,ticks:{color:'#9A9890',font:{size:10},callback:v=>v+'ms'},grid:{color:'rgba(30,28,24,0.06)'},title:{display:true,text:'HRV (ms)',color:'#9A9890',font:{size:10}}}
       }
     }
   });
@@ -970,7 +1077,64 @@ function handleSleepUpload(e) {
   reader.readAsText(file, 'UTF-8');
 }
 
-// ===== MANUAL RACE ADD =====
+// ===== HRV CSV UPLOAD =====
+function handleHRVUpload(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const rows = parseCSVText(ev.target.result);
+      const newHRV = [];
+      rows.forEach(r => {
+        const dateRaw = r['日付']||'';
+        const hrvRaw = r['夜間HRV']||'';
+        const avg7Raw = r['7日平均']||'';
+        const blRaw = r['ベースライン']||'';
+
+        if(!dateRaw || dateRaw==='日付' || hrvRaw==='--' || !hrvRaw) return;
+
+        // Parse ms values
+        const hrv = parseInt(hrvRaw);
+        const avg7 = parseInt(avg7Raw);
+        if(isNaN(hrv)) return;
+
+        // Parse baseline "45ms - 56ms"
+        const blMatch = blRaw.match(/(\d+)ms\s*-\s*(\d+)ms/);
+        const bl_low = blMatch ? parseInt(blMatch[1]) : null;
+        const bl_high = blMatch ? parseInt(blMatch[2]) : null;
+
+        // Parse date - handle "5月 1日" and "2026/05/01" formats
+        let dateStr = null;
+        const isoMatch = dateRaw.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+        const jpMatch = dateRaw.match(/(\d+)月\s*(\d+)日/);
+        if(isoMatch) {
+          dateStr = `${isoMatch[1]}-${String(isoMatch[2]).padStart(2,'0')}-${String(isoMatch[3]).padStart(2,'0')}`;
+        } else if(jpMatch) {
+          const year = new Date().getFullYear();
+          dateStr = `${year}-${String(jpMatch[1]).padStart(2,'0')}-${String(jpMatch[2]).padStart(2,'0')}`;
+        }
+        if(!dateStr) return;
+
+        newHRV.push({date:dateStr, hrv, avg7:isNaN(avg7)?hrv:avg7, bl_low, bl_high});
+      });
+
+      HRV.length = 0;
+      newHRV.sort((a,b)=>a.date.localeCompare(b.date)).forEach(h=>HRV.push(h));
+
+      const log = document.getElementById('uploadLog');
+      log.textContent += `  ✓ HRV: ${newHRV.length}日分読み込み`;
+      document.getElementById('hrvStatus').textContent = `✓ ${file.name}`;
+      document.getElementById('hrvCard').style.borderColor = 'var(--accent3)';
+
+      destroyCharts();
+      initCharts();
+    } catch(err) {
+      document.getElementById('uploadLog').textContent = 'エラー: '+err.message;
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
 function addManualRace() {
   const date = document.getElementById('manualDate').value;
   const name = document.getElementById('manualName').value.trim();
