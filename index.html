@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>私の轍 — Runner Chronicle</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap');
 
@@ -967,7 +968,9 @@ function timeStrToMins(t) {
 }
 
 function destroyCharts() {
-  Chart.helpers.each(Chart.instances, chart => chart.destroy());
+  Object.keys(Chart.instances).forEach(key => {
+    Chart.instances[key].destroy();
+  });
 }
 
 // ===== GARMIN CSV UPLOAD =====
